@@ -72,45 +72,20 @@
     let borrowersList = [];
     let allTransactions = [];
 
-    // Authentication State Monitor (အကောင့်ဝင်/မဝင် စစ်ဆေးခြင်း)
+    // Authentication State Monitor
     onAuthStateChanged(auth, (user) => {
+      const authSec = document.getElementById("authSection");
+      const mainSec = document.getElementById("mainAppSection");
+
       if (user) {
-        document.getElementById("authSection").style.display = "none";
-        document.getElementById("mainAppSection").style.display = "block";
+        if (authSec) authSec.style.display = "none";
+        if (mainSec) mainSec.style.display = "block";
         document.getElementById("userEmailDisplay").innerText = user.email;
         initDataListeners();
       } else {
-        document.getElementById("authSection").style.display = "block";
-        document.getElementById("mainAppSection").style.display = "none";
+        if (authSec) authSec.style.display = "block";
+        if (mainSec) mainSec.style.display = "none";
       }
-    });
-
-    // Login ပြုလုပ်ခြင်း
-    document.getElementById("btnLogin").addEventListener("click", async () => {
-      const email = document.getElementById("authEmail").value.trim();
-      const pass = document.getElementById("authPassword").value.trim();
-      try {
-        await signInWithEmailAndPassword(auth, email, pass);
-      } catch (err) {
-        alert("Login ဝင်၍ မရပါ: " + err.message);
-      }
-    });
-
-    // Account အသစ်ပြုလုပ်ခြင်း
-    document.getElementById("btnRegister").addEventListener("click", async () => {
-      const email = document.getElementById("authEmail").value.trim();
-      const pass = document.getElementById("authPassword").value.trim();
-      try {
-        await createUserWithEmailAndPassword(auth, email, pass);
-        alert("အကောင့်အသစ် ပြုလုပ်ပြီးပါပြီ!");
-      } catch (err) {
-        alert("အကောင့်ပြုလုပ်၍ မရပါ: " + err.message);
-      }
-    });
-
-    // Logout ထွက်ခြင်း
-    document.getElementById("btnLogout").addEventListener("click", () => {
-      signOut(auth);
     });
 
     // Data များကို Realtime ရယူခြင်း
@@ -120,25 +95,29 @@
         const select = document.getElementById("borrowerSelect");
         const filterSelect = document.getElementById("filterBorrower");
         
-        select.innerHTML = '<option value="">-- အကြွေးယူသူ ရွေးပါ --</option>';
-        filterSelect.innerHTML = '<option value="ALL">လူအားလုံး စာရင်းကြည့်မည်</option>';
+        if (select) select.innerHTML = '<option value="">-- အကြွေးယူသူ ရွေးပါ --</option>';
+        if (filterSelect) filterSelect.innerHTML = '<option value="ALL">လူအားလုံး စာရင်းကြည့်မည်</option>';
 
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
           const bObj = { id: docSnap.id, ...data };
           borrowersList.push(bObj);
 
-          const option = document.createElement("option");
-          option.value = docSnap.id;
-          option.text = `${data.name} (စတင်ရက်: ${data.startDate || '-'} | အရင်း: ${Number(data.principal || 0).toLocaleString()} Ks | ${data.rate}%)`;
-          select.appendChild(option);
+          if (select) {
+            const option = document.createElement("option");
+            option.value = docSnap.id;
+            option.text = `${data.name} (စတင်ရက်: ${data.startDate || '-'} | အရင်း: ${Number(data.principal || 0).toLocaleString()} Ks | ${data.rate}%)`;
+            select.appendChild(option);
+          }
 
-          const fOption = document.createElement("option");
-          fOption.value = docSnap.id;
-          fOption.text = data.name;
-          filterSelect.appendChild(fOption);
+          if (filterSelect) {
+            const fOption = document.createElement("option");
+            fOption.value = docSnap.id;
+            fOption.text = data.name;
+            filterSelect.appendChild(fOption);
+          }
         });
-      });
+      }, (err) => console.error("Borrowers Error:", err));
 
       onSnapshot(collection(db, "transactions"), (snapshot) => {
         allTransactions = [];
@@ -147,7 +126,7 @@
         });
         allTransactions.sort((a, b) => new Date(b.payDate) - new Date(a.payDate));
         renderHistoryTable();
-      });
+      }, (err) => console.error("Transactions Error:", err));
     }
 
     function renderHistoryTable() {
@@ -309,10 +288,40 @@
       }
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
+    // DOM ပေါ်လာချိန်မှ Event များအားလုံး တပ်ဆင်ခြင်း
+    window.addEventListener("DOMContentLoaded", () => {
       document.getElementById('payDate').valueAsDate = new Date();
       document.getElementById('newStartDate').valueAsDate = new Date();
 
+      // Auth Buttons
+      document.getElementById("btnLogin").addEventListener("click", async () => {
+        const email = document.getElementById("authEmail").value.trim();
+        const pass = document.getElementById("authPassword").value.trim();
+        if(!email || !pass) return alert("Email နှင့် Password ဖြည့်ပါ!");
+        try {
+          await signInWithEmailAndPassword(auth, email, pass);
+        } catch (err) {
+          alert("Login မှားယွင်းနေပါသည်: " + err.message);
+        }
+      });
+
+      document.getElementById("btnRegister").addEventListener("click", async () => {
+        const email = document.getElementById("authEmail").value.trim();
+        const pass = document.getElementById("authPassword").value.trim();
+        if(!email || !pass) return alert("Email နှင့် Password ဖြည့်ပါ!");
+        try {
+          await createUserWithEmailAndPassword(auth, email, pass);
+          alert("အကောင့်အသစ် ပြုလုပ်ပြီးပါပြီ!");
+        } catch (err) {
+          alert("အကောင့်ပြုလုပ်၍ မရပါ: " + err.message);
+        }
+      });
+
+      document.getElementById("btnLogout").addEventListener("click", () => {
+        signOut(auth);
+      });
+
+      // App Buttons
       document.getElementById('btnSaveBorrower').addEventListener('click', saveNewBorrower);
       document.getElementById('btnSaveTransaction').addEventListener('click', saveTransaction);
       document.getElementById('borrowerSelect').addEventListener('change', updateLoanInfo);
@@ -423,5 +432,4 @@
 </div>
 
 </body>
-          </html>
-          
+</html>

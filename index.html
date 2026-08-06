@@ -7,7 +7,7 @@
 
   <style>
     body { font-family: sans-serif; background-color: #f0f2f5; margin: 0; padding: 15px; }
-    .card { max-width: 600px; margin: 0 auto 20px auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .card { max-width: 650px; margin: 0 auto 20px auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
     h2, h3 { color: #1a252f; margin-top: 0; text-align: center; }
     .form-group { margin-bottom: 12px; }
     label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 13px; }
@@ -16,16 +16,18 @@
     button { width: 100%; padding: 12px; border: none; border-radius: 5px; font-size: 15px; cursor: pointer; font-weight: bold; color: white; }
     .btn-green { background: #27ae60; }
     .btn-blue { background: #2980b9; }
-    .btn-print { background: #e67e22; padding: 5px 8px; font-size: 11px; width: auto; }
+    .btn-print { background: #e67e22; padding: 5px 8px; font-size: 11px; width: auto; border-radius: 3px; }
+    .btn-delete { background: #e74c3c; padding: 5px 8px; font-size: 11px; width: auto; border-radius: 3px; margin-left: 3px; }
     table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
     th { background-color: #34495e; color: white; }
+    .flex-actions { display: flex; justify-content: center; align-items: center; }
   </style>
 
   <!-- Firebase JavaScript SDK Modular Version -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     // Firebase Config
     const firebaseConfig = {
@@ -118,7 +120,10 @@
           <td style="color:green; font-weight:bold;">${Number(t.interestPaid || 0).toLocaleString()}</td>
           <td style="color:blue; font-weight:bold;">${Number(t.principalPaid || 0).toLocaleString()}</td>
           <td>${t.remark || '-'}</td>
-          <td><button type="button" class="btn-print" data-name="${t.borrowerName}" data-date="${t.payDate}" data-interest="${t.interestPaid}" data-principal="${t.principalPaid}" data-remark="${t.remark || ''}">ပြေစာထုတ်</button></td>
+          <td class="flex-actions">
+            <button type="button" class="btn-print" data-name="${t.borrowerName}" data-date="${t.payDate}" data-interest="${t.interestPaid}" data-principal="${t.principalPaid}" data-remark="${t.remark || ''}">ပြေစာ</button>
+            <button type="button" class="btn-delete btn-del-trans" data-id="${t.id}">ဖျက်ရန်</button>
+          </td>
         `;
       });
 
@@ -129,16 +134,33 @@
           printReceipt(d.name, d.date, d.interest, d.principal, d.remark);
         });
       });
+
+      // Delete Transaction Event
+      document.querySelectorAll('.btn-del-trans').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const transId = e.target.dataset.id;
+          if (confirm("ဤမှတ်တမ်းကို ဖျက်ပစ်ရန် သေချာပါသလား?")) {
+            try {
+              await deleteDoc(doc(db, "transactions", transId));
+              alert("မှတ်တမ်း ဖျက်ပြီးပါပြီ!");
+            } catch (err) {
+              alert("ဖျက်၍ မရပါ: " + err.message);
+            }
+          }
+        });
+      });
     }
 
     // အမည်ရွေးပါက လိုအပ်သည့် စာရင်းများ ပေါ်လာစေခြင်း
     function updateLoanInfo() {
       const borrowerId = document.getElementById("borrowerSelect").value;
       const infoBox = document.getElementById("loanDetails");
+      const delBorrowerBtn = document.getElementById("btnDeleteBorrower");
 
       if (!borrowerId) {
         infoBox.innerHTML = "ကျေးဇူးပြု၍ အကြွေးယူသူ အမည်ကို ပထမဦးစွာ ရွေးချယ်ပါ။";
         document.getElementById("interestPaid").value = "";
+        delBorrowerBtn.style.display = "none";
         return;
       }
 
@@ -151,6 +173,7 @@
           <b>၁ လစာ ကျသင့်အတိုး (${borrower.rate}%):</b> <b style="color:red;">${monthlyInterest.toLocaleString()} Ks</b>
         `;
         document.getElementById("interestPaid").value = monthlyInterest;
+        delBorrowerBtn.style.display = "inline-block";
       }
     }
 
@@ -227,7 +250,25 @@
       }
     }
 
-    // ၅။ သက်သေခံ ပြေစာ ထုတ်ပေးခြင်း
+    // ၅။ အကြွေးယူသူ မိမိကိုယ်တိုင် ဖျက်ရန်
+    async function deleteBorrower() {
+      const borrowerId = document.getElementById("borrowerSelect").value;
+      if (!borrowerId) return;
+
+      const borrower = borrowersList.find(b => b.id === borrowerId);
+      if (confirm(`အကြွေးယူသူ "${borrower.name}" ၏ အချက်အလက်များကို လုံးဝဖျက်ပစ်ရန် သေချာပါသလား?`)) {
+        try {
+          await deleteDoc(doc(db, "borrowers", borrowerId));
+          alert("အကြွေးယူသူ စာရင်းကို ဖျက်ပြီးပါပြီ!");
+          document.getElementById("borrowerSelect").value = "";
+          updateLoanInfo();
+        } catch (e) {
+          alert("ဖျက်၍ မရပါ Error: " + e.message);
+        }
+      }
+    }
+
+    // ၆။ သက်သေခံ ပြေစာ ထုတ်ပေးခြင်း
     function printReceipt(name, date, interest, principal, remark) {
       const receiptWindow = window.open('', '_blank', 'width=400,height=500');
       receiptWindow.document.write(`
@@ -259,6 +300,7 @@
       document.getElementById('btnSaveTransaction').addEventListener('click', saveTransaction);
       document.getElementById('borrowerSelect').addEventListener('change', updateLoanInfo);
       document.getElementById('filterBorrower').addEventListener('change', renderHistoryTable);
+      document.getElementById('btnDeleteBorrower').addEventListener('click', deleteBorrower);
     });
   </script>
 </head>
@@ -304,6 +346,10 @@
     ကျေးဇူးပြု၍ အကြွေးယူသူ အမည်ကို ပထမဦးစွာ ရွေးချယ်ပါ။
   </div>
 
+  <div style="margin-bottom: 15px;">
+    <button type="button" id="btnDeleteBorrower" class="btn-delete" style="display:none; width:100%; padding:8px;">ဤအကြွေးယူသူ၏ စာရင်းတစ်ခုလုံးကို ဖျက်ပစ်မည်</button>
+  </div>
+
   <div class="form-group">
     <label>ပေးချေသည့် ရက်စွဲ *</label>
     <input type="date" id="payDate">
@@ -346,7 +392,7 @@
         <th>အတိုး (Ks)</th>
         <th>အရင်း (Ks)</th>
         <th>မှတ်ချက်</th>
-        <th>သက်သေခံပြေစာ</th>
+        <th>လုပ်ဆောင်ချက်</th>
       </tr>
     </thead>
     <tbody id="historyTable">
@@ -356,5 +402,5 @@
 </div>
 
 </body>
-  </html>
+                         </html>
   

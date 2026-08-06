@@ -22,6 +22,29 @@
     th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
     th { background-color: #34495e; color: white; }
     .flex-actions { display: flex; justify-content: center; align-items: center; }
+
+    /* Modal (ပြေစာ ပေါ်လာမည့် အကွက်) CSS */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;
+    }
+    .receipt-box {
+      background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 380px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 2px solid #333; text-align: left;
+    }
+    .receipt-title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 10px; border-bottom: 2px dashed #333; padding-bottom: 5px; }
+    .receipt-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+    .receipt-actions { display: flex; gap: 10px; margin-top: 15px; }
+    .btn-modal-print { background: #27ae60; }
+    .btn-modal-close { background: #7f8c8d; }
+
+    /* Print စာရွက်ထုတ်ချိန်တွင် မလိုအပ်သည့် ခလုတ်များ ဖျောက်ထားရန် */
+    @media print {
+      body * { visibility: hidden; }
+      #printableArea, #printableArea * { visibility: visible; }
+      #printableArea { position: absolute; left: 0; top: 0; width: 100%; border: none; }
+      .receipt-actions { display: none !important; }
+    }
   </style>
 
   <!-- Firebase JavaScript SDK Modular Version -->
@@ -29,7 +52,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    // Firebase Config (ညီလေး ပေးထားသော Config အမှန်)
     const firebaseConfig = {
       apiKey: "AIzaSyC2THh7u-bT5u7A7Rkjkkguqc5xOb42WsM",
       authDomain: "nge-sar-yin.firebaseapp.com",
@@ -40,20 +62,17 @@
       measurementId: "G-VV376VMB9S"
     };
 
-    // Firebase Initialize
     let app, db;
     try {
       app = initializeApp(firebaseConfig);
       db = getFirestore(app);
-      console.log("Firebase Connected Successfully!");
     } catch (err) {
-      alert("Firebase Connection Error: " + err.message);
+      alert("Firebase Error: " + err.message);
     }
 
     let borrowersList = [];
     let allTransactions = [];
 
-    // ၁။ အကြွေးယူသူများ စာရင်း ရယူခြင်း (Real-time Listener)
     if (db) {
       onSnapshot(collection(db, "borrowers"), (snapshot) => {
         borrowersList = [];
@@ -78,11 +97,8 @@
           fOption.text = data.name;
           filterSelect.appendChild(fOption);
         });
-      }, (err) => {
-        console.error("Borrowers fetch failed:", err);
       });
 
-      // ၂။ ငွေဝင်မှတ်တမ်းများ ရယူခြင်း
       onSnapshot(collection(db, "transactions"), (snapshot) => {
         allTransactions = [];
         snapshot.forEach((docSnap) => {
@@ -90,12 +106,9 @@
         });
         allTransactions.sort((a, b) => new Date(b.payDate) - new Date(a.payDate));
         renderHistoryTable();
-      }, (err) => {
-        console.error("Transactions fetch failed:", err);
       });
     }
 
-    // Statement Table Render ပြုလုပ်ခြင်း
     function renderHistoryTable() {
       const filterSelect = document.getElementById("filterBorrower");
       if (!filterSelect) return;
@@ -127,15 +140,14 @@
         `;
       });
 
-      // Print Button click event
+      // ပြေစာကြည့်ရန် ခလုတ်နှိပ်ခြင်း
       document.querySelectorAll('.btn-print').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const d = e.target.dataset;
-          printReceipt(d.name, d.date, d.interest, d.principal, d.remark);
+          showReceiptModal(d.name, d.date, d.interest, d.principal, d.remark);
         });
       });
 
-      // Delete Transaction Event (ငွေဝင်မှတ်တမ်း ဖျက်ရန်)
       document.querySelectorAll('.btn-del-trans').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           const transId = e.target.dataset.id;
@@ -151,7 +163,21 @@
       });
     }
 
-    // အမည်ရွေးပါက လိုအပ်သည့် စာရင်းများ ပေါ်လာစေခြင်း
+    // Modal ပြေစာ ပြသပေးသည့် Function
+    function showReceiptModal(name, date, interest, principal, remark) {
+      const modal = document.getElementById("receiptModal");
+      const total = Number(interest) + Number(principal);
+
+      document.getElementById("recName").innerText = name;
+      document.getElementById("recDate").innerText = date;
+      document.getElementById("recInterest").innerText = Number(interest).toLocaleString() + " Ks";
+      document.getElementById("recPrincipal").innerText = Number(principal).toLocaleString() + " Ks";
+      document.getElementById("recTotal").innerText = total.toLocaleString() + " Ks";
+      document.getElementById("recRemark").innerText = remark || "-";
+
+      modal.style.display = "flex";
+    }
+
     function updateLoanInfo() {
       const borrowerId = document.getElementById("borrowerSelect").value;
       const infoBox = document.getElementById("loanDetails");
@@ -173,11 +199,10 @@
           <b>၁ လစာ ကျသင့်အတိုး (${borrower.rate}%):</b> <b style="color:red;">${monthlyInterest.toLocaleString()} Ks</b>
         `;
         document.getElementById("interestPaid").value = monthlyInterest;
-        delBorrowerBtn.style.display = "inline-block";
+        delBorrowerBtn.style.display = "block";
       }
     }
 
-    // ၃။ အကြွေးယူသူအသစ် သိမ်းဆည်းခြင်း
     async function saveNewBorrower() {
       const name = document.getElementById("newName").value.trim();
       const phone = document.getElementById("newPhone").value.trim();
@@ -186,31 +211,20 @@
       const rate = parseFloat(document.getElementById("newRate").value);
 
       if (!name || !startDate || isNaN(principal) || isNaN(rate)) {
-        alert("အမည်၊ စတင်သည့်ရက်၊ ချေးငွေ ပမာဏ နှင့် အတိုးနှုန်းကို ဖြည့်စွက်ပါ!");
+        alert("အချက်အလက်များကို ပြည့်စုံစွာ ဖြည့်ပါ!");
         return;
       }
 
       try {
-        await addDoc(collection(db, "borrowers"), {
-          name: name,
-          phone: phone,
-          startDate: startDate,
-          principal: principal,
-          rate: rate,
-          createdAt: new Date().toISOString()
-        });
-
-        alert("အကြွေးယူသူအသစ် " + name + " ကို စာရင်းသိမ်းဆည်းပြီးပါပြီ!");
+        await addDoc(collection(db, "borrowers"), { name, phone, startDate, principal, rate, createdAt: new Date().toISOString() });
+        alert("အကြွေးယူသူအသစ် သိမ်းဆည်းပြီးပါပြီ!");
         document.getElementById("newName").value = "";
         document.getElementById("newPhone").value = "";
         document.getElementById("newPrincipal").value = "";
         document.getElementById("newRate").value = "";
-      } catch (e) {
-        alert("သိမ်းဆည်း၍ မရပါ Error: " + e.message);
-      }
+      } catch (e) { alert("Error: " + e.message); }
     }
 
-    // ၄။ အတိုး/အရင်း ပေးချေမှု သိမ်းဆည်းခြင်း
     async function saveTransaction() {
       const borrowerId = document.getElementById("borrowerSelect").value;
       const payDate = document.getElementById("payDate").value;
@@ -219,7 +233,7 @@
       const remark = document.getElementById("remark").value.trim();
 
       if (!borrowerId || !payDate) {
-        alert("အကြွေးယူသူ အမည် နှင့် ရက်စွဲကို မဖြစ်မနေ ရွေးချယ်ပါ!");
+        alert("အကြွေးယူသူ အမည် နှင့် ရက်စွဲကို မဖြစ်မနေ ရွေးပါ!");
         return;
       }
 
@@ -228,13 +242,7 @@
 
       try {
         await addDoc(collection(db, "transactions"), {
-          borrowerId: borrowerId,
-          borrowerName: borrower.name,
-          payDate: payDate,
-          interestPaid: interestPaid,
-          principalPaid: principalPaid,
-          remark: remark,
-          timestamp: new Date()
+          borrowerId, borrowerName: borrower.name, payDate, interestPaid, principalPaid, remark, timestamp: new Date()
         });
 
         if (principalPaid > 0) {
@@ -242,56 +250,26 @@
           await updateDoc(doc(db, "borrowers", borrowerId), { principal: newPrincipal });
         }
 
-        alert("အတိုး/အရင်း ပေးချေမှု စာရင်း သိမ်းဆည်းပြီးပါပြီ!");
+        alert("မှတ်တမ်း သိမ်းဆည်းပြီးပါပြီ!");
         document.getElementById("remark").value = "";
         document.getElementById("principalPaid").value = "0";
-      } catch (e) {
-        alert("သိမ်းဆည်း၍ မရပါ Error: " + e.message);
-      }
+      } catch (e) { alert("Error: " + e.message); }
     }
 
-    // ၅။ အကြွေးယူသူ မိမိကိုယ်တိုင် ဖျက်ရန်
     async function deleteBorrower() {
       const borrowerId = document.getElementById("borrowerSelect").value;
       if (!borrowerId) return;
-
       const borrower = borrowersList.find(b => b.id === borrowerId);
-      if (confirm(`အကြွေးယူသူ "${borrower.name}" ၏ အချက်အလက်များကို လုံးဝဖျက်ပစ်ရန် သေချာပါသလား?`)) {
+      if (confirm(`"${borrower.name}" ၏ အချက်အလက်များကို ဖျက်ရန် သေချာပါသလား?`)) {
         try {
           await deleteDoc(doc(db, "borrowers", borrowerId));
-          alert("အကြွေးယူသူ စာရင်းကို ဖျက်ပြီးပါပြီ!");
+          alert("ဖျက်ပြီးပါပြီ!");
           document.getElementById("borrowerSelect").value = "";
           updateLoanInfo();
-        } catch (e) {
-          alert("ဖျက်၍ မရပါ Error: " + e.message);
-        }
+        } catch (e) { alert("Error: " + e.message); }
       }
     }
 
-    // ၆။ သက်သေခံ ပြေစာ ထုတ်ပေးခြင်း
-    function printReceipt(name, date, interest, principal, remark) {
-      const receiptWindow = window.open('', '_blank', 'width=400,height=500');
-      receiptWindow.document.write(`
-        <html>
-        <head><title>ငွေပေးချေမှု ပြေစာ</title></head>
-        <body style="font-family:sans-serif; padding:20px; text-align:center; border:2px solid #333;">
-          <h2>အတိုး/ငွေဆပ် သက်သေခံ ပြေစာ</h2>
-          <hr>
-          <p style="text-align:left;"><b>အမည်:</b> ${name}</p>
-          <p style="text-align:left;"><b>ရက်စွဲ:</b> ${date}</p>
-          <p style="text-align:left;"><b>အတိုးပေးငွေ:</b> ${Number(interest).toLocaleString()} Ks</p>
-          <p style="text-align:left;"><b>အရင်းဆပ်ငွေ:</b> ${Number(principal).toLocaleString()} Ks</p>
-          <p style="text-align:left;"><b>စုစုပေါင်းပေးငွေ:</b> <b>${(Number(interest) + Number(principal)).toLocaleString()} Ks</b></p>
-          <p style="text-align:left;"><b>မှတ်ချက်:</b> ${remark || '-'}</p>
-
-          <p>လက်ခံရရှိသူ လက်မှတ်: .....................</p>
-          <button onclick="window.print()">Print ထုတ်မည်</button>
-        </body>
-        </html>
-      `);
-    }
-
-    // Event Listener များ ချိတ်ဆက်ခြင်း
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById('payDate').valueAsDate = new Date();
       document.getElementById('newStartDate').valueAsDate = new Date();
@@ -301,6 +279,14 @@
       document.getElementById('borrowerSelect').addEventListener('change', updateLoanInfo);
       document.getElementById('filterBorrower').addEventListener('change', renderHistoryTable);
       document.getElementById('btnDeleteBorrower').addEventListener('click', deleteBorrower);
+
+      // Modal ခလုတ်များ Control လုပ်ခြင်း
+      document.getElementById('btnCloseModal').addEventListener('click', () => {
+        document.getElementById("receiptModal").style.display = "none";
+      });
+      document.getElementById('btnPrintModal').addEventListener('click', () => {
+        window.print();
+      });
     });
   </script>
 </head>
@@ -309,26 +295,11 @@
 <!-- ၁။ အကြွေးယူသူအသစ် ထည့်ရန် -->
 <div class="card">
   <h2>အကြွေးယူသူ အသစ်ထည့်ရန်</h2>
-  <div class="form-group">
-    <label>အမည် *</label>
-    <input type="text" id="newName" placeholder="ဥပမာ - မဖြူ">
-  </div>
-  <div class="form-group">
-    <label>ဖုန်းနံပါတ်</label>
-    <input type="text" id="newPhone" placeholder="09xxxxxxxxx">
-  </div>
-  <div class="form-group">
-    <label>စတင်ယူသည့် ရက်စွဲ *</label>
-    <input type="date" id="newStartDate">
-  </div>
-  <div class="form-group">
-    <label>ချေးငွေ ပမာဏ (Ks) *</label>
-    <input type="number" id="newPrincipal" placeholder="5000000">
-  </div>
-  <div class="form-group">
-    <label>အတိုးနှုန်း (%) *</label>
-    <input type="number" id="newRate" placeholder="15">
-  </div>
+  <div class="form-group"><label>အမည် *</label><input type="text" id="newName" placeholder="ဥပမာ - မဖြူ"></div>
+  <div class="form-group"><label>ဖုန်းနံပါတ်</label><input type="text" id="newPhone" placeholder="09xxxxxxxxx"></div>
+  <div class="form-group"><label>စတင်ယူသည့် ရက်စွဲ *</label><input type="date" id="newStartDate"></div>
+  <div class="form-group"><label>ချေးငွေ ပမာဏ (Ks) *</label><input type="number" id="newPrincipal" placeholder="5000000"></div>
+  <div class="form-group"><label>အတိုးနှုန်း (%) *</label><input type="number" id="newRate" placeholder="15"></div>
   <button type="button" id="btnSaveBorrower" class="btn-blue">အကြွေးယူသူအသစ် သိမ်းဆည်းမည်</button>
 </div>
 
@@ -337,70 +308,55 @@
   <h2>အတိုး/ငွေဆပ် မှတ်တမ်းသွင်းရန်</h2>
   <div class="form-group">
     <label>အကြွေးယူသူ အမည် *</label>
-    <select id="borrowerSelect">
-      <option value="">-- ရွေးချယ်ပါ --</option>
-    </select>
+    <select id="borrowerSelect"><option value="">-- ရွေးချယ်ပါ --</option></select>
   </div>
-
-  <div class="info-box" id="loanDetails">
-    ကျေးဇူးပြု၍ အကြွေးယူသူ အမည်ကို ပထမဦးစွာ ရွေးချယ်ပါ။
-  </div>
-
+  <div class="info-box" id="loanDetails">ကျေးဇူးပြု၍ အကြွေးယူသူ အမည်ကို ပထမဦးစွာ ရွေးချယ်ပါ။</div>
   <div style="margin-bottom: 15px;">
     <button type="button" id="btnDeleteBorrower" class="btn-delete" style="display:none; width:100%; padding:8px;">ဤအကြွေးယူသူ၏ စာရင်းတစ်ခုလုံးကို ဖျက်ပစ်မည်</button>
   </div>
-
-  <div class="form-group">
-    <label>ပေးချေသည့် ရက်စွဲ *</label>
-    <input type="date" id="payDate">
-  </div>
-
-  <div class="form-group">
-    <label>အတိုး ပေးငွေ (Ks) *</label>
-    <input type="number" id="interestPaid" placeholder="0">
-  </div>
-
-  <div class="form-group">
-    <label>အရင်း ဆပ်ငွေ (Ks)</label>
-    <input type="number" id="principalPaid" value="0">
-  </div>
-
-  <div class="form-group">
-    <label>မှတ်ချက်</label>
-    <input type="text" id="remark" placeholder="ဥပမာ- ဇူလိုင်လစာ အတိုးပေး">
-  </div>
-
+  <div class="form-group"><label>ပေးချေသည့် ရက်စွဲ *</label><input type="date" id="payDate"></div>
+  <div class="form-group"><label>အတိုး ပေးငွေ (Ks) *</label><input type="number" id="interestPaid" placeholder="0"></div>
+  <div class="form-group"><label>အရင်း ဆပ်ငွေ (Ks)</label><input type="number" id="principalPaid" value="0"></div>
+  <div class="form-group"><label>မှတ်ချက်</label><input type="text" id="remark" placeholder="ဥပမာ- ဇူလိုင်လစာ အတိုးပေး"></div>
   <button type="button" id="btnSaveTransaction" class="btn-green">စာရင်း သိမ်းဆည်းမည်</button>
 </div>
 
 <!-- ၃။ ငွေဝင် မှတ်တမ်းများ (Statement History) -->
 <div class="card">
   <h3>ငွေဝင်မှတ်တမ်းများ (Statement History)</h3>
-  
   <div class="form-group">
     <label>လူတစ်ဦးချင်းအလိုက် သီးသန့်ကြည့်ရန် Filter ရွေးပါ -</label>
-    <select id="filterBorrower">
-      <option value="ALL">လူအားလုံး စာရင်းကြည့်မည်</option>
-    </select>
+    <select id="filterBorrower"><option value="ALL">လူအားလုံး စာရင်းကြည့်မည်</option></select>
   </div>
-
   <table>
     <thead>
-      <tr>
-        <th>ရက်စွဲ</th>
-        <th>အမည်</th>
-        <th>အတိုး (Ks)</th>
-        <th>အရင်း (Ks)</th>
-        <th>မှတ်ချက်</th>
-        <th>လုပ်ဆောင်ချက်</th>
-      </tr>
+      <tr><th>ရက်စွဲ</th><th>အမည်</th><th>အတိုး (Ks)</th><th>အရင်း (Ks)</th><th>မှတ်ချက်</th><th>လုပ်ဆောင်ချက်</th></tr>
     </thead>
-    <tbody id="historyTable">
-      <!-- Database မှ Data များ အလိုအလျောက် ပေါ်လာမည် -->
-    </tbody>
+    <tbody id="historyTable"></tbody>
   </table>
 </div>
 
+<!-- ပြေစာ ပေါ်လာမည့် Pop-up Modal -->
+<div class="modal-overlay" id="receiptModal">
+  <div class="receipt-box" id="printableArea">
+    <div class="receipt-title">အတိုး/ငွေဆပ် ပြေစာ</div>
+    <div class="receipt-row"><span>အမည်:</span><b id="recName">-</b></div>
+    <div class="receipt-row"><span>ရက်စွဲ:</span><span id="recDate">-</span></div>
+    <hr>
+    <div class="receipt-row"><span>အတိုးပေးငွေ:</span><span id="recInterest">0 Ks</span></div>
+    <div class="receipt-row"><span>အရင်းဆပ်ငွေ:</span><span id="recPrincipal">0 Ks</span></div>
+    <div class="receipt-row" style="font-weight:bold; font-size:16px;"><span>စုစုပေါင်းပေးငွေ:</span><span id="recTotal" style="color:green;">0 Ks</span></div>
+    <div class="receipt-row"><span>မှတ်ချက်:</span><span id="recRemark">-</span></div>
+    <br>
+    <div style="font-size:12px; text-align:center; margin-top:10px;">လက်ခံရရှိသူ လက်မှတ်: .....................</div>
+
+    <div class="receipt-actions">
+      <button type="button" class="btn-modal-print" id="btnPrintModal">Print / Save as PDF</button>
+      <button type="button" class="btn-modal-close" id="btnCloseModal">ပိတ်မည်</button>
+    </div>
+  </div>
+</div>
+
 </body>
-    </html>
-    
+  </html>
+  

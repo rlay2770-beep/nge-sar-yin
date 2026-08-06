@@ -29,7 +29,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    // Firebase Config
+    // Firebase Config (ညီလေး ပေးထားသော Config အမှန်)
     const firebaseConfig = {
       apiKey: "AIzaSyC2THh7u-bT5u7A7Rkjkkguqc5xOb42WsM",
       authDomain: "nge-sar-yin.firebaseapp.com",
@@ -135,7 +135,7 @@
         });
       });
 
-      // Delete Transaction Event
+      // Delete Transaction Event (ငွေဝင်မှတ်တမ်း ဖျက်ရန်)
       document.querySelectorAll('.btn-del-trans').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           const transId = e.target.dataset.id;
@@ -402,5 +402,5 @@
 </div>
 
 </body>
-      </html>
-  
+    </html>
+    

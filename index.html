@@ -40,6 +40,19 @@
     .receipt-actions { display: flex; gap: 10px; margin-top: 15px; }
     .btn-modal-print { background: #27ae60; }
     .btn-modal-close { background: #7f8c8d; }
+
+    /* PDF Printable Dedicated Hidden Container */
+    #pdfPrintContainer {
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
+      width: 350px;
+      background: #ffffff;
+      color: #000000;
+      padding: 15px;
+      border: 2px solid #000;
+      font-family: sans-serif;
+    }
   </style>
 
   <!-- Firebase JavaScript SDK -->
@@ -160,12 +173,21 @@
       const modal = document.getElementById("receiptModal");
       const total = Number(interest) + Number(principal);
 
+      // UI Modal update
       document.getElementById("recName").innerText = name;
       document.getElementById("recDate").innerText = date;
       document.getElementById("recInterest").innerText = Number(interest).toLocaleString() + " Ks";
       document.getElementById("recPrincipal").innerText = Number(principal).toLocaleString() + " Ks";
       document.getElementById("recTotal").innerText = total.toLocaleString() + " Ks";
       document.getElementById("recRemark").innerText = remark || "-";
+
+      // PDF Dedicated Area update
+      document.getElementById("pdfName").innerText = name;
+      document.getElementById("pdfDate").innerText = date;
+      document.getElementById("pdfInterest").innerText = Number(interest).toLocaleString() + " Ks";
+      document.getElementById("pdfPrincipal").innerText = Number(principal).toLocaleString() + " Ks";
+      document.getElementById("pdfTotal").innerText = total.toLocaleString() + " Ks";
+      document.getElementById("pdfRemark").innerText = remark || "-";
 
       modal.style.display = "flex";
     }
@@ -262,17 +284,17 @@
       }
     }
 
-    // PDF Download ဆွဲသည့် Function
+    // PDF တိုက်ရိုက် Render သည့် စနစ်
     function downloadPDFReceipt() {
-      const element = document.getElementById('receiptArea');
-      const name = document.getElementById('recName').innerText;
-      const date = document.getElementById('recDate').innerText;
+      const element = document.getElementById('pdfPrintContainer');
+      const name = document.getElementById('pdfName').innerText;
+      const date = document.getElementById('pdfDate').innerText;
 
       const opt = {
-        margin:       10,
+        margin:       5,
         filename:     `Receipt_${name}_${date}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
         jsPDF:        { unit: 'mm', format: 'a5', orientation: 'portrait' }
       };
 
@@ -295,7 +317,6 @@
         document.getElementById("receiptModal").style.display = "none";
       });
 
-      // PDF Download ခလုတ်
       document.getElementById('btnPrintModal').addEventListener('click', downloadPDFReceipt);
     });
   </script>
@@ -350,21 +371,19 @@
 
 </div>
 
-<!-- ပြေစာ Pop-up Modal -->
+<!-- ပြေစာ Pop-up Modal (Screen ထဲတွင်ပြမည့် UI) -->
 <div class="modal-overlay" id="receiptModal">
   <div class="receipt-box">
-    <div id="receiptArea" style="padding: 10px;">
-      <div class="receipt-title">အတိုး/ငွေဆပ် ပြေစာ</div>
-      <div class="receipt-row"><span>အမည်:</span><b id="recName">-</b></div>
-      <div class="receipt-row"><span>ရက်စွဲ:</span><span id="recDate">-</span></div>
-      <hr>
-      <div class="receipt-row"><span>အတိုးပေးငွေ:</span><span id="recInterest">0 Ks</span></div>
-      <div class="receipt-row"><span>အရင်းဆပ်ငွေ:</span><span id="recPrincipal">0 Ks</span></div>
-      <div class="receipt-row" style="font-weight:bold; font-size:16px;"><span>စုစုပေါင်းပေးငွေ:</span><span id="recTotal" style="color:green;">0 Ks</span></div>
-      <div class="receipt-row"><span>မှတ်ချက်:</span><span id="recRemark">-</span></div>
-      <br>
-      <div style="font-size:12px; text-align:center; margin-top:10px;">လက်ခံရရှိသူ လက်မှတ်: .....................</div>
-    </div>
+    <div class="receipt-title">အတိုး/ငွေဆပ် ပြေစာ</div>
+    <div class="receipt-row"><span>အမည်:</span><b id="recName">-</b></div>
+    <div class="receipt-row"><span>ရက်စွဲ:</span><span id="recDate">-</span></div>
+    <hr>
+    <div class="receipt-row"><span>အတိုးပေးငွေ:</span><span id="recInterest">0 Ks</span></div>
+    <div class="receipt-row"><span>အရင်းဆပ်ငွေ:</span><span id="recPrincipal">0 Ks</span></div>
+    <div class="receipt-row" style="font-weight:bold; font-size:16px;"><span>စုစုပေါင်းပေးငွေ:</span><span id="recTotal" style="color:green;">0 Ks</span></div>
+    <div class="receipt-row"><span>မှတ်ချက်:</span><span id="recRemark">-</span></div>
+    <br>
+    <div style="font-size:12px; text-align:center; margin-top:10px;">လက်ခံရရှိသူ လက်မှတ်: .....................</div>
 
     <div class="receipt-actions">
       <button type="button" class="btn-modal-print" id="btnPrintModal">Save as PDF (ဒေါင်းလုဒ်ဆွဲမည်)</button>
@@ -373,6 +392,36 @@
   </div>
 </div>
 
+<!-- PDF အဖြစ် ပြောင်းလဲရန် သီးသန့် Hidden Container -->
+<div id="pdfPrintContainer">
+  <div style="text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 10px; border-bottom: 2px dashed #000; padding-bottom: 5px;">
+    အတိုး/ငွေဆပ် ပြေစာ
+  </div>
+  <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+    <span>အမည်:</span><b id="pdfName">-</b>
+  </div>
+  <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+    <span>ရက်စွဲ:</span><span id="pdfDate">-</span>
+  </div>
+  <hr style="border: 0.5px solid #000;">
+  <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+    <span>အတိုးပေးငွေ:</span><span id="pdfInterest">0 Ks</span>
+  </div>
+  <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+    <span>အရင်းဆပ်ငွေ:</span><span id="pdfPrincipal">0 Ks</span>
+  </div>
+  <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 16px; font-weight: bold;">
+    <span>စုစုပေါင်းပေးငွေ:</span><span id="pdfTotal" style="color:green;">0 Ks</span>
+  </div>
+  <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+    <span>မှတ်ချက်:</span><span id="pdfRemark">-</span>
+  </div>
+  <br><br>
+  <div style="font-size:12px; text-align:center; margin-top:15px;">
+    လက်ခံရရှိသူ လက်မှတ်: .......................................
+  </div>
+</div>
+
 </body>
   </html>
-    
+  

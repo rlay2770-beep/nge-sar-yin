@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>အတိုး/ငွေချေး စီမံခန့်ခွဲမှု စနစ် (Dashboard အသစ်ပါဝင်ပြီး)</title>
+  <title>အတိုး/ငွေချေး စီမံခန့်ခွဲမှု စနစ်</title>
 
   <!-- HTML to PDF Generator Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -122,7 +122,6 @@
           }
         });
 
-        // Dashboard Totals Update
         document.getElementById("totalInvestment").innerText = totalInvestment.toLocaleString() + " Ks";
         document.getElementById("totalExpectedInterest").innerText = totalMonthlyInterest.toLocaleString() + " Ks";
 
@@ -155,6 +154,9 @@
       }
 
       filteredData.forEach((t) => {
+        const borrowerInfo = borrowersList.find(b => b.id === t.borrowerId);
+        const phoneNo = borrowerInfo ? (borrowerInfo.phone || '-') : '-';
+
         const row = tableBody.insertRow();
         row.innerHTML = `
           <td>${t.payDate || '-'}</td>
@@ -163,7 +165,7 @@
           <td style="color:blue; font-weight:bold;">${Number(t.principalPaid || 0).toLocaleString()}</td>
           <td>${t.remark || '-'}</td>
           <td class="flex-actions">
-            <button type="button" class="btn-print" data-name="${t.borrowerName}" data-date="${t.payDate}" data-interest="${t.interestPaid}" data-principal="${t.principalPaid}" data-remark="${t.remark || ''}">ပြေစာ</button>
+            <button type="button" class="btn-print" data-name="${t.borrowerName}" data-phone="${phoneNo}" data-date="${t.payDate}" data-interest="${t.interestPaid}" data-principal="${t.principalPaid}" data-remark="${t.remark || ''}">ပြေစာ</button>
             <button type="button" class="btn-delete btn-del-trans" data-id="${t.id}">ဖျက်ရန်</button>
           </td>
         `;
@@ -172,7 +174,7 @@
       document.querySelectorAll('.btn-print').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const d = e.target.dataset;
-          showReceiptModal(d.name, d.date, d.interest, d.principal, d.remark);
+          showReceiptModal(d.name, d.phone, d.date, d.interest, d.principal, d.remark);
         });
       });
 
@@ -191,11 +193,12 @@
       });
     }
 
-    function showReceiptModal(name, date, interest, principal, remark) {
+    function showReceiptModal(name, phone, date, interest, principal, remark) {
       const modal = document.getElementById("receiptModal");
       const total = Number(interest) + Number(principal);
 
       document.getElementById("recName").innerText = name;
+      document.getElementById("recPhone").innerText = phone || "-";
       document.getElementById("recDate").innerText = date;
       document.getElementById("recInterest").innerText = Number(interest).toLocaleString() + " Ks";
       document.getElementById("recPrincipal").innerText = Number(principal).toLocaleString() + " Ks";
@@ -203,6 +206,7 @@
       document.getElementById("recRemark").innerText = remark || "-";
 
       document.getElementById("pdfName").innerText = name;
+      document.getElementById("pdfPhone").innerText = phone || "-";
       document.getElementById("pdfDate").innerText = date;
       document.getElementById("pdfInterest").innerText = Number(interest).toLocaleString() + " Ks";
       document.getElementById("pdfPrincipal").innerText = Number(principal).toLocaleString() + " Ks";
@@ -229,6 +233,7 @@
         const monthlyInterest = (Number(borrower.principal) * Number(borrower.rate)) / 100;
         infoBox.innerHTML = `
           <b>စတင်ယူသည့်ရက်:</b> ${borrower.startDate || '-'}<br>
+          <b>ဖုန်းနံပါတ်:</b> ${borrower.phone || '-'}<br>
           <b>လက်ရှိ မူလအရင်း:</b> ${Number(borrower.principal).toLocaleString()} Ks<br>
           <b>၁ လစာ ကျသင့်အတိုး (${borrower.rate}%):</b> <b style="color:red;">${monthlyInterest.toLocaleString()} Ks</b>
         `;
@@ -297,7 +302,7 @@
           borrowerName: borrower.name,
           payDate: addDate,
           interestPaid: 0,
-          principalPaid: -addAmount, // မူလ အရင်းဆပ်ငွေနှင့် ခွဲခြားရန် Minus ဖြင့် မှတ်တမ်းတင်ခြင်း
+          principalPaid: -addAmount,
           remark: `[အရင်းထပ်တိုး] ${remark}`,
           timestamp: new Date()
         });
@@ -424,7 +429,7 @@
     <button type="button" id="btnSaveBorrower" class="btn-blue">အကြွေးယူသူအသစ် သိမ်းဆည်းမည်</button>
   </div>
 
-   <!-- ၂။ အရင်းငွေ ထပ်တိုးထုတ်ပေးခြင်း -->
+  <!-- ၂။ အရင်းငွေ ထပ်တိုးထုတ်ပေးခြင်း -->
   <div class="card">
     <h2>အရင်းငွေ ထပ်တိုးထုတ်ပေးခြင်း</h2>
     <div class="form-group">
@@ -478,6 +483,7 @@
   <div class="receipt-box">
     <div class="receipt-title">အတိုး/ငွေဆပ် ပြေစာ</div>
     <div class="receipt-row"><span>အမည်:</span><b id="recName">-</b></div>
+    <div class="receipt-row"><span>ဖုန်းနံပါတ်:</span><span id="recPhone">-</span></div>
     <div class="receipt-row"><span>ရက်စွဲ:</span><span id="recDate">-</span></div>
     <hr>
     <div class="receipt-row"><span>အတိုးပေးငွေ:</span><span id="recInterest">0 Ks</span></div>
@@ -501,6 +507,9 @@
   </div>
   <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
     <span>အမည်:</span><b id="pdfName">-</b>
+  </div>
+  <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+    <span>ဖုန်းနံပါတ်:</span><span id="pdfPhone">-</span>
   </div>
   <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
     <span>ရက်စွဲ:</span><span id="pdfDate">-</span>

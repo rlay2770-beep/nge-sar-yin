@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>အတိုး/ငွေချေး စီမံခန့်ခွဲမှု စနစ် (လအလိုက် စာရင်း)</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <title>အတိုး/ငွေချေး စီမံခန့်ခွဲမှု စနစ်</title>
 
   <style>
-    body { font-family: sans-serif; background-color: #f0f2f5; margin: 0; padding: 15px; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 15px; }
     .card { max-width: 650px; margin: 0 auto 20px auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
     h2, h3 { color: #1a252f; margin-top: 0; text-align: center; }
     .form-group { margin-bottom: 12px; }
@@ -18,14 +17,12 @@
     .btn-green { background: #27ae60; }
     .btn-blue { background: #2980b9; }
     .btn-orange { background: #e67e22; }
-    .btn-print { background: #27ae60; padding: 5px 8px; font-size: 11px; width: auto; border-radius: 3px; }
-    .btn-delete { background: #e74c3c; padding: 5px 8px; font-size: 11px; width: auto; border-radius: 3px; margin-left: 3px; }
+    .btn-delete { background: #e74c3c; padding: 5px 8px; font-size: 11px; width: auto; border-radius: 3px; }
     table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
     th { background-color: #34495e; color: white; }
-    .flex-actions { display: flex; justify-content: center; align-items: center; }
 
-    /* Dashboard Cards Layout */
+    /* Dashboard Layout */
     .dashboard-grid { display: flex; gap: 10px; justify-content: space-between; margin-bottom: 15px; }
     .dash-card { flex: 1; background: #fff; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-top: 4px solid #3498db; text-align: center; }
     .dash-card.green { border-top-color: #27ae60; }
@@ -34,12 +31,12 @@
     .dash-value { font-size: 15px; font-weight: bold; color: #2c3e50; margin-top: 5px; }
 
     .month-picker-container { max-width: 650px; margin: 0 auto 15px auto; background: #2c3e50; padding: 10px; border-radius: 8px; color: white; display: flex; align-items: center; justify-content: space-between; }
-    .month-picker-container select { width: 60%; background: #fff; color: #000; font-weight: bold; }
+    .month-picker-container input { width: 50%; background: #fff; color: #000; font-weight: bold; }
   </style>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC2THh7u-bT5u7A7Rkjkkguqc5xOb42WsM",
@@ -57,6 +54,7 @@
     let borrowersList = [];
     let allTransactions = [];
 
+    // Realtime Database Listeners
     function initDataListeners() {
       // 1. Listen to Borrowers
       onSnapshot(collection(db, "borrowers"), (snapshot) => {
@@ -66,6 +64,7 @@
         });
         recalculateDashboard();
         updateDropdowns();
+        renderBorrowersTable();
       });
 
       // 2. Listen to Transactions
@@ -80,6 +79,7 @@
       });
     }
 
+    // Update Select Dropdowns
     function updateDropdowns() {
       const select = document.getElementById("borrowerSelect");
       const addSelect = document.getElementById("addPrincipalBorrowerSelect");
@@ -92,7 +92,7 @@
       borrowersList.forEach((data) => {
         const principal = Number(data.principal || 0);
         const rate = Number(data.rate || 0);
-        const optionText = `${data.name} (အရင်း: ${principal.toLocaleString()} Ks | ${rate}%)`;
+        const optionText = `${data.name} (လက်ရှိအရင်း: ${principal.toLocaleString()} Ks | ${rate}%)`;
 
         if (select) select.appendChild(new Option(optionText, data.id));
         if (addSelect) addSelect.appendChild(new Option(optionText, data.id));
@@ -100,9 +100,9 @@
       });
     }
 
-    // လအလိုက် Dashboard ပြန်လည်တွက်ချက်ခြင်း
+    // Dashboard Calculation
     function recalculateDashboard() {
-      const selectedMonth = document.getElementById("selectedMonthFilter").value; // e.g. "2026-09"
+      const selectedMonth = document.getElementById("selectedMonthFilter").value;
       
       let totalInvestment = 0;
       let totalExpectedMonthlyInterest = 0;
@@ -115,7 +115,6 @@
         totalExpectedMonthlyInterest += (principal * rate) / 100;
       });
 
-      // ရွေးချယ်ထားသော လထဲတွင် ရရှိခဲ့သော အတိုးများ ပေါင်းယူခြင်း
       allTransactions.forEach(t => {
         if (t.payDate && t.payDate.startsWith(selectedMonth)) {
           receivedInterestThisMonth += Number(t.interestPaid || 0);
@@ -129,13 +128,48 @@
       document.getElementById("totalPendingInterest").innerText = pendingInterestThisMonth.toLocaleString() + " Ks";
     }
 
+    // Render Borrowers List Table
+    function renderBorrowersTable() {
+      const tableBody = document.getElementById("borrowersTable");
+      tableBody.innerHTML = "";
+
+      if (borrowersList.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">အကြွေးယူသူ စာရင်း မရှိသေးပါ။</td></tr>';
+        return;
+      }
+
+      borrowersList.forEach((b) => {
+        const principal = Number(b.principal || 0);
+        const rate = Number(b.rate || 0);
+        const monthlyInterest = (principal * rate) / 100;
+
+        const row = tableBody.insertRow();
+        row.innerHTML = `
+          <td><b>${b.name}</b></td>
+          <td>${b.phone || '-'}</td>
+          <td>${principal.toLocaleString()} Ks</td>
+          <td>${rate}%</td>
+          <td style="color:green; font-weight:bold;">${monthlyInterest.toLocaleString()} Ks</td>
+          <td><button class="btn-delete btn-del-borrower" data-id="${b.id}">ဖျက်ရန်</button></td>
+        `;
+      });
+
+      document.querySelectorAll('.btn-del-borrower').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          if (confirm("ဤအကြွေးယူသူကို ဖျက်ပစ်ရန် သေချာပါသလား?")) {
+            await deleteDoc(doc(db, "borrowers", e.target.dataset.id));
+          }
+        });
+      });
+    }
+
+    // Render History Table
     function renderHistoryTable() {
       const filterId = document.getElementById("filterBorrower").value;
       const selectedMonth = document.getElementById("selectedMonthFilter").value;
       const tableBody = document.getElementById("historyTable");
       tableBody.innerHTML = "";
 
-      // လအလိုက် သို့မဟုတ် လူအလိုက် စစ်ထုတ်ခြင်း
       const filteredData = allTransactions.filter(t => {
         const matchMonth = t.payDate && t.payDate.startsWith(selectedMonth);
         const matchBorrower = (filterId === "ALL" || t.borrowerId === filterId);
@@ -150,8 +184,8 @@
       filteredData.forEach((t) => {
         const type = t.type || (t.principalPaid < 0 ? 'ADD' : 'PAY');
         let principalText = type === 'ADD' 
-          ? `<b style="color:red;">+${Math.abs(t.principalPaid || 0).toLocaleString()}</b>`
-          : `<b style="color:blue;">-${Number(t.principalPaid || 0).toLocaleString()}</b>`;
+          ? `<b style="color:red;">+${Math.abs(t.principalPaid || 0).toLocaleString()} (တိုး)</b>`
+          : `<b style="color:blue;">-${Number(t.principalPaid || 0).toLocaleString()} (ဆပ်)</b>`;
 
         const row = tableBody.insertRow();
         row.innerHTML = `
@@ -160,7 +194,7 @@
           <td style="color:green; font-weight:bold;">${Number(t.interestPaid || 0).toLocaleString()}</td>
           <td>${principalText}</td>
           <td style="text-align:left;">${t.remark || '-'}</td>
-          <td><button type="button" class="btn-delete btn-del-trans" data-id="${t.id}">ဖျက်ရန်</button></td>
+          <td><button class="btn-delete btn-del-trans" data-id="${t.id}">ဖျက်ရန်</button></td>
         `;
       });
 
@@ -174,13 +208,116 @@
     }
 
     window.addEventListener("DOMContentLoaded", () => {
-      // Current Month Set (e.g., 2026-09)
+      // Set Default Month (Current Month)
       const now = new Date();
       const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const todayStr = now.toISOString().split('T')[0];
+
       document.getElementById("selectedMonthFilter").value = currentMonthStr;
+      document.getElementById("payDate").value = todayStr;
+      document.getElementById("addPrincipalDate").value = todayStr;
 
       initDataListeners();
 
+      // 1. စာရင်းသစ် ချေးငှားသူ ထည့်သွင်းခြင်း
+      document.getElementById("newBorrowerForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = document.getElementById("bName").value.trim();
+        const principal = Number(document.getElementById("bPrincipal").value);
+        const rate = Number(document.getElementById("bRate").value);
+        const phone = document.getElementById("bPhone").value.trim();
+        const address = document.getElementById("bAddress").value.trim();
+
+        if (!name || principal <= 0 || rate <= 0) {
+          alert("ကျေးဇူးပြု၍ အချက်အလက်များ မှန်ကန်စွာ ဖြည့်သွင်းပါ");
+          return;
+        }
+
+        await addDoc(collection(db, "borrowers"), {
+          name, principal, rate, phone, address,
+          createdAt: new Date().toISOString()
+        });
+
+        alert("ချေးငှားသူအသစ် စာရင်းသွင်းပြီးပါပြီ။");
+        document.getElementById("newBorrowerForm").reset();
+      });
+
+      // 2. အတိုး / အရင်း ပြန်ဆပ်ခြင်း
+      document.getElementById("paymentForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const borrowerId = document.getElementById("borrowerSelect").value;
+        const interestPaid = Number(document.getElementById("interestPaid").value || 0);
+        const principalPaid = Number(document.getElementById("principalPaid").value || 0);
+        const payDate = document.getElementById("payDate").value;
+        const remark = document.getElementById("payRemark").value.trim();
+
+        if (!borrowerId) {
+          alert("အကြွေးယူထားသူ ရွေးချယ်ပါ။");
+          return;
+        }
+
+        const borrower = borrowersList.find(b => b.id === borrowerId);
+
+        // Save Transaction
+        await addDoc(collection(db, "transactions"), {
+          borrowerId,
+          borrowerName: borrower.name,
+          interestPaid,
+          principalPaid,
+          payDate,
+          remark,
+          type: 'PAY',
+          createdAt: new Date().toISOString()
+        });
+
+        // Update Principal in Borrowers if principal paid
+        if (principalPaid > 0) {
+          const newPrincipal = Math.max(0, borrower.principal - principalPaid);
+          await updateDoc(doc(db, "borrowers", borrowerId), { principal: newPrincipal });
+        }
+
+        alert("ပြန်ဆပ်သည့် စာရင်း သိမ်းဆည်းပြီးပါပြီ။");
+        document.getElementById("paymentForm").reset();
+        document.getElementById("payDate").value = todayStr;
+      });
+
+      // 3. အရင်း ထပ်တိုး ချေးယူခြင်း
+      document.getElementById("addPrincipalForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const borrowerId = document.getElementById("addPrincipalBorrowerSelect").value;
+        const addAmount = Number(document.getElementById("additionalAmount").value || 0);
+        const payDate = document.getElementById("addPrincipalDate").value;
+        const remark = document.getElementById("addPrincipalRemark").value.trim();
+
+        if (!borrowerId || addAmount <= 0) {
+          alert("အချက်အလက်များ မှန်ကန်စွာ ရွေးချယ်ဖြည့်သွင်းပါ။");
+          return;
+        }
+
+        const borrower = borrowersList.find(b => b.id === borrowerId);
+
+        // Transaction Record (Negative principalPaid to denote addition)
+        await addDoc(collection(db, "transactions"), {
+          borrowerId,
+          borrowerName: borrower.name,
+          interestPaid: 0,
+          principalPaid: -addAmount,
+          payDate,
+          remark: `[အရင်းတပ်တိုး] ${remark}`,
+          type: 'ADD',
+          createdAt: new Date().toISOString()
+        });
+
+        // Update Principal
+        const newPrincipal = Number(borrower.principal || 0) + addAmount;
+        await updateDoc(doc(db, "borrowers", borrowerId), { principal: newPrincipal });
+
+        alert("အရင်းတပ်တိုး စာရင်း သွင်းပြီးပါပြီ။");
+        document.getElementById("addPrincipalForm").reset();
+        document.getElementById("addPrincipalDate").value = todayStr;
+      });
+
+      // Filter Event Listeners
       document.getElementById("selectedMonthFilter").addEventListener("change", () => {
         recalculateDashboard();
         renderHistoryTable();
@@ -192,12 +329,10 @@
 </head>
 <body>
 
-<div id="mainAppSection">
-
-  <!-- လအလိုက် ရွေးချယ်နိုင်သော Dropdown -->
+  <!-- လအလိုက် ရွေးချယ်ရန် Dropdown -->
   <div class="month-picker-container">
     <label style="margin:0;">ကြည့်ရှုလိုသည့် လ ရွေးပါ :</label>
-    <input type="month" id="selectedMonthFilter" style="width:50%; padding:5px;">
+    <input type="month" id="selectedMonthFilter">
   </div>
 
   <!-- Dashboard Overview -->
@@ -218,9 +353,100 @@
     </div>
   </div>
 
-  <!-- စာရင်းဇယားပြသသည့် အပိုင်း -->
+  <!-- Form 1: ချေးငှားသူအသစ် ထည့်သွင်းရန် -->
   <div class="card">
-    <h3>ငွေဝင်မှတ်တမ်းများ (Statement History)</h3>
+    <h3>၁။ ချေးငှားသူအသစ် ထည့်သွင်းရန်</h3>
+    <form id="newBorrowerForm">
+      <div class="form-group">
+        <label>အမည်</label>
+        <input type="text" id="bName" required placeholder="ဥပမာ - ဦးဘ">
+      </div>
+      <div class="form-group">
+        <label>မူရင်း ချေးငှားငွေ/အရင်း (Ks)</label>
+        <input type="number" id="bPrincipal" required placeholder="1000000">
+      </div>
+      <div class="form-group">
+        <label>၁ လစာ အတိုးနှုန်း (%)</label>
+        <input type="number" id="bRate" step="0.1" required placeholder="5">
+      </div>
+      <div class="form-group">
+        <label>ဖုန်းနံပါတ်</label>
+        <input type="text" id="bPhone" placeholder="09xxxxxxxxx">
+      </div>
+      <div class="form-group">
+        <label>လိပ်စာ/မှတ်ချက်</label>
+        <input type="text" id="bAddress" placeholder="နေရပ်လိပ်စာ">
+      </div>
+      <button type="submit" class="btn-green">ချေးငှားသူအသစ် သိမ်းဆည်းမည်</button>
+    </form>
+  </div>
+
+  <!-- Form 2: အတိုး/အရင်း ပြန်ဆပ်ခြင်း -->
+  <div class="card">
+    <h3>၂။ အတိုး သို့မဟုတ် အရင်း ပြန်ဆပ်ခြင်း</h3>
+    <form id="paymentForm">
+      <div class="form-group">
+        <label>အကြွေးယူထားသူ ရွေးပါ</label>
+        <select id="borrowerSelect" required></select>
+      </div>
+      <div class="form-group">
+        <label>ဆပ်သည့် အတိုးငွေ (Ks)</label>
+        <input type="number" id="interestPaid" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>ဆပ်သည့် အရင်းငွေ (Ks) - *အရင်းလျော့မည်*</label>
+        <input type="number" id="principalPaid" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>ရက်စွဲ</label>
+        <input type="date" id="payDate" required>
+      </div>
+      <div class="form-group">
+        <label>မှတ်ချက်</label>
+        <input type="text" id="payRemark" placeholder="ဥပမာ - ၉ လပိုင်း အတိုးလာဆပ်သည်">
+      </div>
+      <button type="submit" class="btn-blue">ပြန်ဆပ်မှု စာရင်းသိမ်းမည်</button>
+    </form>
+  </div>
+
+  <!-- Form 3: အရင်း ထပ်တိုး ချေးယူခြင်း -->
+  <div class="card">
+    <h3>၃။ အရင်း တပ်တိုး ချေးယူခြင်း</h3>
+    <form id="addPrincipalForm">
+      <div class="form-group">
+        <label>အကြွေးယူထားသူ ရွေးပါ</label>
+        <select id="addPrincipalBorrowerSelect" required></select>
+      </div>
+      <div class="form-group">
+        <label>ထပ်တိုးပေးသည့် အရင်းငွေ (Ks)</label>
+        <input type="number" id="additionalAmount" required placeholder="500000">
+      </div>
+      <div class="form-group">
+        <label>ရက်စွဲ</label>
+        <input type="date" id="addPrincipalDate" required>
+      </div>
+      <div class="form-group">
+        <label>မှတ်ချက်</label>
+        <input type="text" id="addPrincipalRemark" placeholder="ဥပမာ - အရင်း ၅ သိန်း ထပ်ယူသည်">
+      </div>
+      <button type="submit" class="btn-orange">အရင်း ထပ်တိုးမည်</button>
+    </form>
+  </div>
+
+  <!-- Table 1: ချေးငှားသူများ စာရင်းချုပ် -->
+  <div class="card">
+    <h3>လက်ရှိ ချေးငှားသူများ စာရင်း</h3>
+    <table>
+      <thead>
+        <tr><th>အမည်</th><th>ဖုန်း</th><th>လက်ရှိအရင်း</th><th>အတိုးနှုန်း</th><th>၁လစာ အတိုး</th><th>လုပ်ဆောင်ချက်</th></tr>
+      </thead>
+      <tbody id="borrowersTable"></tbody>
+    </table>
+  </div>
+
+  <!-- Table 2: ငွေဝင်/ငွေထွက် မှတ်တမ်းများ -->
+  <div class="card">
+    <h3>ငွေဝင်/ငွေထွက် မှတ်တမ်းများ (History)</h3>
     <div class="form-group">
       <select id="filterBorrower"><option value="ALL">လူအားလုံး စာရင်းကြည့်မည်</option></select>
     </div>
@@ -231,8 +457,6 @@
       <tbody id="historyTable"></tbody>
     </table>
   </div>
-
-</div>
 
 </body>
   </html>
